@@ -52,11 +52,9 @@ Humble 版本跑通后，再迁移 Jazzy 会更稳。
 
 ```sh
 export ROS_DISTRO=humble
-
 source /opt/ros/humble/setup.bash
 
 sudo apt update
-
 sudo apt install -y \
   ros-$ROS_DISTRO-navigation2 \
   ros-$ROS_DISTRO-nav2-bringup \
