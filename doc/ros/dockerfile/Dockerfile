@@ -3,6 +3,10 @@ FROM osrf/ros:humble-desktop-full
 ENV ROS_DISTRO=humble
 
 # 一次性安装全部需要的包
+# 
+# navigation2 是 meta-package（元包），它的依赖列表内置 nav2_map_server、
+# nav2_amcl、nav2_planner、nav2_controller 全套 Nav2 组件。
+# 
 RUN sed -i 's/archive.ubuntu.com/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list && \
     apt update && apt install -y \
     ros-$ROS_DISTRO-navigation2 \
