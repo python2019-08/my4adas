@@ -130,6 +130,8 @@ sudo apt install x11-xserver-utils
 # 正常输出类似 `:0` 或者 `:1`。
 echo $DISPLAY
 
+conda deactivate
+
 # ⚠️ 这个命令重启终端会失效，每次**启动容器前执行一次**。
 # 含义：开放本地X访问权限,允许docker容器连接本机X11服务,用于RViz2窗口弹出（宿主机终端执行）
 # ⚠️ `xhost +` 不推荐生产使用，开放权限有安全风险，开发调试临时用。
@@ -219,8 +221,8 @@ xhost +local:docker
 # 启动已创建的容器
 docker start humble_dev
 # 进入终端
-docker exec -it humble_dev bash
- 
+# docker exec -it humble_dev bash
+docker exec -it humble_nav2 bash 
 
 # 假设宿主机代理地址：127.0.0.1:7897（替换成你自己的代理）
 docker exec -it \

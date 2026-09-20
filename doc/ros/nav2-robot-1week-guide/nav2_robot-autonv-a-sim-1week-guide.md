@@ -88,12 +88,12 @@ rviz2 --help
 期望结果：能看到  nav2_* 、 slam_toolbox 、 robot_localization 、 gazebo_ros  相关包，且
 rviz2 --help  正常输出。
 
-2.4 核⼼组件⼀览
+## 2.4 核⼼组件⼀览
 
 组件                   | 作⽤
 ----------------------|---
-robot_state_publisher | 根据URDF 布机器⼈连杆和静态关节的 TF
-gazebo_ros            | 在 azebo 运⾏ OS2 件，提供仿真传感器和底盘动⼒
+robot_state_publisher | 根据URDF 发布机器⼈连杆和静态关节的 TF
+gazebo_ros            | 在 gazebo 运⾏ ROS2 插件，提供仿真传感器和底盘动⼒
 robot_localization    | 融合仿真⾥程计和仿真 IMU，发布odom -> base_link
 slam_toolbox          | 建图阶段负责建图，同时提供map -> odom
 map_server            | 导航阶段加载静态地图
@@ -111,6 +111,7 @@ costmap               | 给规划器和控制器提供环境占据和障碍物�
 export ROS_DISTRO=humble
 source /opt/ros/humble/setup.bash
 export ROBOT_WS=$HOME/robot_nav_ws
+# export ROBOT_WS=$HOME/ros/robot_nav_ws
 ```
 
 ⼯作空间构建完成后，再加：
@@ -141,7 +142,7 @@ Lifecycle Node | 具有unconfigured / inactive / active 等状态的 ROS2 Node
 BehaviorTree   | Nav2组织导航动作和恢复动作的⾏为树
 rosbag         | ROS2数据记录⽂件
 
-#3. ⼯作空间
+# 3. ⼯作空间
 
 ## 3.1 建议⽬录
 

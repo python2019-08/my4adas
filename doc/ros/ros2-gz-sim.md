@@ -449,4 +449,163 @@ ros2 run nav2_map_server map_saver_cli -f mymap --ros-args -p save_map_dir:=/hom
 ## 为什么不直接叫 torque？
 ROS1 设计的时候，为了**一个字段同时兼容旋转关节和直线关节**，就用了通用词 `effort`（作用力/出力），而不是区分 torque / force。
 这是ROS历史遗留命名，**不是翻译错误**。
+
+================================================
+
+# ✅  ros-humble[gazebo_ros_pkgs] <=> ros-jazzy[ros_gz]  
  
+> 
+> Humble 里：
+> 
+> 
+> - `gazebo_ros_pkgs` → Gazebo Classic (gazebo11)，插件：`gazebo_ros_diff_drive` / `gazebo_ros_laser` / `gazebo_ros_imu`
+> 
+> 
+> Jazzy 里：
+> 
+> 
+> - **`ros_gz`** = 替代 `gazebo_ros_pkgs` 的元包，配套 Gazebo Harmonic（`gz sim`）
+
+## ros_gz 包含的子包（对应原来 gazebo_ros_pkgs 的能力）
+
+| 包名                 | 作用 |
+| ------------------- | --- |
+| `ros_gz_sim`        | 提供启动gz sim的launch、工具，替代`gazebo_ros`的启动部分 |
+| `ros_gz_bridge`     | ROS ↔ Gazebo Transport消息双向桥（最重要！） |
+| `ros_gz_interfaces` | 消息/服务定义 |
+| `ros_gz_image`      | 图像传输桥 |
+| `ros_gz_sim_demos`  | 示例world、模型、launch |
+
+## 安装命令（Jazzy）
+
+```sh
+# 一键安装全套 ros_gz
+sudo apt install ros-jazzy-ros-gz
+```
+
+单独装核心组件：
+```sh
+sudo apt install ros-jazzy-ros-gz-sim ros-jazzy-ros-gz-bridge ros-jazzy-ros-gz-interfaces
+```
+
+# ⚠️ 重大变化（对你的差速底盘Xacro最关键）
+
+1. **插件名字完全变了！**
+ Humble Classic：
+```xml
+<plugin name="gazebo_ros_diff_drive" filename="libgazebo_ros_diff_drive.so"/>
+```
+
+ Jazzy + Gazebo Harmonic：**不再是 gazebo_ros 系列插件**
+   - 差速驱动、激光、IMU 用 **Gazebo Sim System Plugin**，写在 `<plugin>`标签 
+   - 常用：`gz::sim::systems::DiffDrive`、`gz::sim::systems::Lidar`、`gz::sim::systems::Imu`
+   - 消息靠 `ros_gz_bridge` 把gz transport消息转发成ROS2 `/scan`、`/odom`、`/imu`
+2. 启动命令：
+   - Humble Classic：`ros2 launch gazebo_ros gazebo.launch.py`
+   - Jazzy：`ros2 launch ros_gz_sim gz_sim.launch.py gz_args:=xxx.world`
+
+## 额外：ros2_control 方案（推荐，更现代）
+
+你做差速底盘，Jazzy 更推荐用 `gz_ros2_control`，在Gazebo里接入ros2_control控制器：
+
+```sh
+sudo apt install ros-jazzy-gz-ros2-control
+```
+
+这个方案可以直接用 `diff_drive_controller`，不用手动配置ros_gz_bridge转发odom。
+
+## 迁移要点小结
+
+- ❌ Jazzy 不要继续用 `gazebo_ros_diff_drive` / `gazebo_ros_laser`，**在Gazebo Harmonic里面不存在**
+- ✅ 两种路线二选一：
+  1. 原生Gazebo Sim系统插件 + ros_gz_bridge（轻量，适合简单机器人）
+  2. gz_ros2_control + ros2_control控制器（工程首选，和真实硬件复用控制器代码）
+
+要不要我给你一份适配Jazzy+Gazebo Harmonic的完整xacro片段，包含DiffDrive、Lidar、IMU的system插件写法？
+
+===============================================
+
+# gz topic 命令解析
+
+```
+gz topic -t "/cmd_vel" -m gz.msgs.Twist -p "linear: {x: 0.5}, angular: {z: 0.05}"
+```
+
+**作用：向Gazebo Transport话题 `/cmd_vel` 一次性发送一条Gazebo原生Twist速度指令，驱动SDF里的 `gz::sim::systems::DiffDrive` 差速底盘**
+
+> 
+> ⚠️ 重点：**这是 gz transport 的话题，不是 ROS2 的 /cmd_vel！**
+> 消息类型是 `gz.msgs.Twist`，不是ROS2的 `geometry_msgs/msg/Twist`。
+
+## 参数拆解
+
+| 参数 | 含义 |
+| --- | --- |
+| `gz topic` | Gazebo Sim 的命令行话题工具（类似 ros2 topic） |
+| `-t "/cmd_vel"` | topic名称：`/cmd_vel`（要和DiffDrive插件里`<topic>cmd_vel</topic>`名字匹配） |
+| `-m gz.msgs.Twist` | 消息类型：Gazebo原生Twist速度消息 |
+| `-p "linear: {x: 0.5}, angular: {z: 0.05}"` | 消息内容，YAML格式 |
+
+- `linear.x = 0.5`：**底盘前进线速度 0.5 m/s**
+- `angular.z = 0.05`：**绕Z轴角速度 0.05 rad/s**
+
+👉 效果：小车一边以0.5m/s向前走，一边缓慢左转，走一个大圆弧。
+
+## 关键坑点
+
+1. **一次性单发消息**
+这条命令**只发1次**，DiffDrive插件需要持续收到速度指令。执行一次后，很快小车就会停下。
+想要持续跑，写循环脚本，或者用`gz topic -r`持续发布（部分版本支持）。
+
+> 
+> 很多人疑惑：执行一次，小车动一下马上停，就是这个原因。
+2. **话题名字很容易带model前缀**
+官网demo里很多时候话题全名是 `/model/机器人名字/cmd_vel`，不是简单 `/cmd_vel`。
+
+```
+# 示例，机器人名叫robot1
+gz topic -t "/model/robot1/cmd_vel" -m gz.msgs.Twist -p "linear: {x:0.5}, angular:{z:0.05}"
+```
+
+用下面命令查看当前gz里所有话题，确认真实topic名称：
+
+```
+gz topic -l
+```
+
+3. 和ROS2话题的桥梁：`ros_gz_bridge`
+如果你想用ROS2命令（`ros2 topic pub`）控制这个gz sim小车，就需要桥接：
+
+```
+ros2 run ros_gz_bridge parameter_bridge /cmd_vel@geometry_msgs/msg/Twist@gz.msgs.Twist
+```
+
+桥接之后：
+
+- ROS2侧发布 `geometry_msgs/msg/Twist` → ros_gz_bridge → 转发给gz transport `/cmd_vel`
+- 这时你就可以用 `ros2 topic pub /cmd_vel geometry_msgs/msg/Twist "{linear: {x:0.5}, angular:{z:0.05}}"` 控制小车
+
+## 配套查看gz侧里程计命令
+
+```
+gz topic -e -t /model/robot/odometry
+```
+
+查看Gazebo原生里程计输出（gz.msgs.Odometry），同样需要ros_gz_bridge才能转成ROS2 `/odom`。
+
+## 两条路线对比（回顾你前面的选型）
+
+- 路线A（当前这条，原生gz DiffDrive System Plugin）：
+gz sim 内部DiffDrive插件，接收 **gz transport /cmd_vel**，必须用`gz topic`或者ros_gz_bridge。
+- 路线B（gz_ros2_control）：
+控制器直接订阅 **ROS2原生 /cmd_vel**，不需要ros_gz_bridge做cmd_vel桥接，直接`ros2 topic pub`就能控制，真机代码一致。
+
+## 停止小车命令
+
+给0速度即可：
+
+```
+gz topic -t "/cmd_vel" -m gz.msgs.Twist -p "linear: {x: 0.0}, angular: {z: 0.0}"
+```
+
+如果你需要，我可以写一个**bash循环脚本**，持续发布速度，小车一直转圈。
