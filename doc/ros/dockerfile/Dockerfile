@@ -20,9 +20,14 @@ RUN sed -i 's/archive.ubuntu.com/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/source
     ros-$ROS_DISTRO-teleop-twist-keyboard \
     ros-$ROS_DISTRO-tf2-tools \
     ros-$ROS_DISTRO-gazebo-ros-pkgs \
+    # === 新增下面3行 ===
+    ros-$ROS_DISTRO-ros2-control \
+    ros-$ROS_DISTRO-ros2-controllers \
+    ros-$ROS_DISTRO-gazebo-ros2-control \
     python3-colcon-common-extensions \
     python3-rosdep \
- && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
+
  
 # rosdep初始化
 # RUN rosdep init || true && rosdep update

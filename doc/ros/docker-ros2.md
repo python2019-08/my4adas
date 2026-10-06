@@ -52,9 +52,13 @@ RUN sed -i 's/archive.ubuntu.com/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/source
     ros-$ROS_DISTRO-teleop-twist-keyboard \
     ros-$ROS_DISTRO-tf2-tools \
     ros-$ROS_DISTRO-gazebo-ros-pkgs \
+    # === 新增下面3行 ===
+    ros-$ROS_DISTRO-ros2-control \
+    ros-$ROS_DISTRO-ros2-controllers \
+    ros-$ROS_DISTRO-gazebo-ros2-control \
     python3-colcon-common-extensions \
     python3-rosdep \
- && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
  
 # rosdep初始化
 # RUN rosdep init || true && rosdep update
@@ -152,6 +156,7 @@ docker run -it \
   --shm-size=2g \
   osrf/ros:humble-desktop-full
 
+# ------------------------------
 # RUN 自定义镜像 ros-humble-nav2-full
 docker run -it  --rm \
   --name humble_nav2 \
@@ -163,6 +168,23 @@ docker run -it  --rm \
   -v /mnt/a2disk/a2/zdev/nv/adas-01/ros/:/root/ros \
   --shm-size=2g \
   ros-humble-nav2-full  
+# ---------------------------------
+docker run -it   \
+  --name humble_nav2 \
+  --network=host \
+  --gpus all \
+  --env DISPLAY=$DISPLAY \
+  --env QT_X11_NO_MITSHM=1 \
+  --env http_proxy=http://192.168.1.110:7897 \
+  --env https_proxy=http://192.168.1.110:7897 \
+  --env all_proxy=socks5://192.168.1.110:7897 \
+  --env HTTP_PROXY=http://192.168.1.110:7897 \
+  --env HTTPS_PROXY=http://192.168.1.110:7897 \
+  --env ALL_PROXY=socks5://192.168.1.110:7897 \
+  -v /tmp/.X11-unix:/tmp/.X11-unix \
+  -v /home/abner/a2/zdev/nv/adas-01/ros/:/root/ros \
+  --shm-size=2g \
+  ros-humble-nav2-full
 ```
 
 参数解释（图形相关部分）
@@ -219,21 +241,23 @@ source install/setup.bash
 xhost +local:docker
 
 # 启动已创建的容器
-docker start humble_dev
+# docker start humble_dev
+docker start humble_nav2
 # 进入终端
 # docker exec -it humble_dev bash
 docker exec -it humble_nav2 bash 
 
-# 假设宿主机代理地址：127.0.0.1:7897（替换成你自己的代理）
+# 假设宿主机代理地址：127.0.0.1:7897 
 docker exec -it \
   -e HTTP_PROXY=http://127.0.0.1:7897 \
   -e HTTPS_PROXY=http://127.0.0.1:7897 \
   -e NO_PROXY=localhost,127.0.0.1 \
-humble_dev bash
+humble_nav2 bash
 
 
 #  进入容器后，需要手动 source ROS2 Humble 环境： 
 source /opt/ros/humble/setup.bash
+cd ~/ros/ros2humble_nav_ws
 ```
 
 ### sec.5.1 可选优化：永久xhost配置（不用每次敲xhost）
